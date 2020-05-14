@@ -6,7 +6,7 @@ from BitcoinProto import *
 
 class BitcoinBlockchainParser:
     blk_pattern = re.compile('blk\d{5}.dat')
-    logging.basicConfig(format='%(asctime)s - %(message)s')
+    logging.basicConfig(filename='app.log', filemode='w', format='%(asctime)s - %(message)s', level=logging.DEBUG)
 
     def __init__(self, in_dir_path, out_dir_path):
         self.in_dir_path = in_dir_path
@@ -24,12 +24,26 @@ class BitcoinBlockchainParser:
         filter_func = lambda f: BitcoinBlockchainParser.blk_pattern.match(f)
         blk_files_list = list(filter(filter_func, blk_files_list))
         blk_files_list.sort()
-
+        block_num = 0
         for blk_path in blk_files_list:
-            blk_path = self.in_dir_path + blk_path
-            f_ptr = open(blk_path, 'rb')
-            f_size = os.path.getsize(blk_path)
-            while(f_ptr.tell() != f_size):
-                blk = Block()
-                blk.read(f_ptr)
-            f_ptr.close()
+            in_path = self.in_dir_path + blk_path
+            out_path = self.out_dir_path + blk_path[:9] + 'out'
+            f_size = os.path.getsize(in_path)
+
+            fin = open(in_path, 'rb')
+            fout = open(out_path, 'w')
+            logging.info("Started reading %s", in_path)
+            while fin.tell() != f_size:
+                try:
+                    fout.write('------------Started reading block{}----------\n'.format(block_num))
+                    blk = Block()
+                    blk.read(fin, fout)
+                    fout.write('------------Finished reading block{}---------\n\n'.format(block_num))
+                    block_num += 1
+                except IOError:
+                    fout.write('Corrupted block in block{}, file={}\n'.format(block_num, in_path))
+                    logging.warn("Corrupted data in %s, skipping to next block", in_path)
+                    break
+            logging.info("Finished reading %s", in_path)
+            fin.close()
+            fout.close()
