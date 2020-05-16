@@ -2,15 +2,10 @@ import hashlib
 import struct
 
 #Bitcoin Blockchain protocol
-#Bitcoin uses Little-Endien
 int_size = 4
 block_header_size = 80
 sha256_size = 32
-
 witness_flag_size = 2 # optional data
-# in_count = vli(1, 9) 1-9 bytes
-# transaction_counter = vli(1, 9) 1-9 bytes
-# txin_script_length = vli(1, 9) 1-9 bytes
 value_size = 8
 #--------------------------
 
@@ -24,9 +19,27 @@ def hexify_bytes(val):
     else:
         return hex(val).upper()
 def unpack_one(format, bytes, obj = None):
-    if obj:
-        obj.raw_bytes += bytes
+    if obj: obj.raw_bytes += bytes
     return struct.unpack(format, bytes)[0]
+
+# https://github.com/bitcoin/bitcoin/blob/master/src/consensus/merkle.cpp
+# Compute only merkle root value exactly the same way as Bitcoin does
+# Please, pay attention that Merkle Tree implementations may vary, this one is used in Bitcoin
+def get_merkle_root(tx_list):
+    if len(tx_list) == 0:
+        return bytes()
+
+    #Traditional double sha256 hashing
+    sha256_double = lambda x: hashlib.sha256(hashlib.sha256(x).digest()).digest()
+    while len(tx_list) != 1:
+        #Make a tx_list len even
+        if len(tx_list)&1: tx_list.append(tx_list[-1])
+        temp_list = []
+        for idx in range(0, len(tx_list), 2):
+            h1, h2 = tx_list[idx][::-1], tx_list[idx+1][::-1]
+            temp_list.append(sha256_double(h1+h2)[::-1])
+        tx_list = temp_list
+    return tx_list[0]
 
 #read variable-length integer https://bitcointalk.org/index.php?topic=32849.msg410480#msg410480
 def read_vli(fin, obj = None):
@@ -47,8 +60,8 @@ class BlockHeader:
         #Compute blockheader hash - SHA256(SHA256(block_header)) with OPENSSL
         bytes = fin.read(block_header_size)
         #SHA family uses Big-Endian format
-        bytes = hashlib.new('sha256', bytes).digest()
-        bytes = hashlib.new('sha256', bytes).digest()
+        bytes = hashlib.sha256(bytes).digest()
+        bytes = hashlib.sha256(bytes).digest()
         cur_block_hash = hexify_bytes(bytes[::-1]) # Back to Little-Endian format bytes[::-1]
         fout.write('SHA-256 Current block hash= {}\n'.format(cur_block_hash))
         fin.seek(-block_header_size, 1)
@@ -62,8 +75,8 @@ class BlockHeader:
         fout.write('SHA-256 Previous block hash= {}\n'.format(previous_block_hash))
 
         #Merkle-root
-        merkle_root = hexify_bytes(read_little_endian(fin, sha256_size))
-        fout.write('Merkle root hash= {}\n'.format(merkle_root))
+        merkle_root = read_little_endian(fin, sha256_size)
+        fout.write('Merkle root hash= {}\n'.format(hexify_bytes(merkle_root)))
         #Save merkle-root hash value as a field for validation in the block
         self.merkle_root = merkle_root
 
@@ -80,7 +93,7 @@ class Transaction:
             bytes = read_little_endian(fin, sha256_size)
             pre_tx_hash = hexify_bytes(bytes)
             obj.raw_bytes += bytes[::-1]
-            fout.write('TX before hash= {}\n'.format(pre_tx_hash))
+            fout.write('TX from hash= {}\n'.format(pre_tx_hash))
 
             #Previous Txout-index
             txout_index = unpack_one('<I', fin.read(int_size), obj)
@@ -114,7 +127,7 @@ class Transaction:
             fout.write('Output script= {}\n'.format(script))
 
     def read(self, fin, fout):
-        self.raw_bytes = bytes()
+        self.raw_bytes = b''
 
         #TX version number
         tx_version = unpack_one('<i', fin.read(int_size), self)
@@ -141,7 +154,6 @@ class Transaction:
             in_tx = Transaction.InputTx()
             in_tx.read(fin, fout, self)
             fout.write('-------------------------------\n')
-        fout.write('\n')
         #Out tx counter, variable length integer
         out_count = read_vli(fin, self)
         fout.write('Output tx count= {}\n'.format(out_count))
@@ -167,10 +179,12 @@ class Transaction:
         fout.write('Lock time= {}\n'.format(hexify_bytes(lock_time)))
 
         # Double hash SHA-256, Big-Endian
-        self.raw_bytes = hashlib.new('sha256', self.raw_bytes).digest()
-        self.raw_bytes = hashlib.new('sha256', self.raw_bytes).digest()
-        raw_tx = self.raw_bytes[::-1] # Back to little-Endian
-        fout.write('Full TX hash= {}\n'.format(hexify_bytes(raw_tx)))
+        bytes = self.raw_bytes
+        bytes = hashlib.sha256(bytes).digest()
+        bytes = hashlib.sha256(bytes).digest()
+        bytes = bytes[::-1] # Back to little-Endian
+        fout.write('Full TX hash= {}\n'.format(hexify_bytes(bytes)))
+        self.raw_bytes = bytes
 
 class Block:
     def read(self, fin, fout):
@@ -203,3 +217,6 @@ class Block:
             tx_hashes.append(tx.raw_bytes)
 
         # Compare header.merkle_root with root computed from tx_hashes
+        merkle_root = get_merkle_root(tx_hashes)
+        if merkle_root != header.merkle_root:
+            fout.write('Merkle root mismatch - Expected{{}}, Actual{{}}'.format(header.merkle_root, merkle_root))

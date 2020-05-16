@@ -19,7 +19,7 @@ class BitcoinBlockchainParser:
             logging.info("Path(%s) to output directory doesn't exist - creating one", out_dir_path)
             os.makedirs(out_dir_path)
 
-    def parse(self, verbose = False):
+    def parse(self):
         blk_files_list = os.listdir(self.in_dir_path)
         filter_func = lambda f: BitcoinBlockchainParser.blk_pattern.match(f)
         blk_files_list = list(filter(filter_func, blk_files_list))
@@ -47,3 +47,6 @@ class BitcoinBlockchainParser:
             logging.info("Finished reading %s", in_path)
             fin.close()
             fout.close()
+
+        def parse_threaded(self):
+            pass
