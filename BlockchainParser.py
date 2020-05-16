@@ -55,10 +55,9 @@ class BitcoinBlockchainParser:
         logging.info("Finished single processed parsing process")
 
     def parse_multi_thread(self, threads = 5):
-        import math
         # To avoid more that 10 files opened simultaniously
         # If the parser used thread-safe DB, confiuration would be different
-        threads = math.min(threads, 10)
+        threads = min(threads, 10)
         blk_files_list = self.blk_files_list
         p = Pool(threads)
         logging.info("Started concurrent parsing process with %d threads", threads)

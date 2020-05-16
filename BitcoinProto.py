@@ -9,15 +9,18 @@ witness_flag_size = 2 # optional data
 value_size = 8
 #--------------------------
 
+def sha256_double(x):
+    x = hashlib.sha256(hashlib.sha256(x).digest()).digest()
+    return x[::-1] # Back to little-Endian
+
 def read_little_endian(f, bytes):
     bytes = f.read(bytes)
     return bytes[::-1]
 
 def hexify_bytes(val):
-    if isinstance(val, bytes):
-        return val.hex().upper()
-    else:
-        return hex(val).upper()
+    if isinstance(val, bytes): return val.hex()
+    else: return hex(val)
+
 def unpack_one(format, bytes, obj = None):
     if obj: obj.raw_bytes += bytes
     return struct.unpack(format, bytes)[0]
@@ -29,15 +32,13 @@ def get_merkle_root(tx_list):
     if len(tx_list) == 0:
         return bytes()
 
-    #Traditional double sha256 hashing
-    sha256_double = lambda x: hashlib.sha256(hashlib.sha256(x).digest()).digest()
     while len(tx_list) != 1:
         #Make a tx_list len even
         if len(tx_list)&1: tx_list.append(tx_list[-1])
         temp_list = []
         for idx in range(0, len(tx_list), 2):
             h1, h2 = tx_list[idx][::-1], tx_list[idx+1][::-1]
-            temp_list.append(sha256_double(h1+h2)[::-1])
+            temp_list.append(sha256_double(h1+h2))
         tx_list = temp_list
     return tx_list[0]
 
@@ -58,11 +59,9 @@ def read_vli(fin, obj = None):
 class BlockHeader:
     def read(self, fin, fout):
         #Compute blockheader hash - SHA256(SHA256(block_header)) with OPENSSL
-        bytes = fin.read(block_header_size)
         #SHA family uses Big-Endian format
-        bytes = hashlib.sha256(bytes).digest()
-        bytes = hashlib.sha256(bytes).digest()
-        cur_block_hash = hexify_bytes(bytes[::-1]) # Back to Little-Endian format bytes[::-1]
+        bytes = sha256_double(fin.read(block_header_size))
+        cur_block_hash = hexify_bytes(bytes)
         fout.write('SHA-256 Current block hash= {}\n'.format(cur_block_hash))
         fin.seek(-block_header_size, 1)
 
@@ -77,14 +76,14 @@ class BlockHeader:
         #Merkle-root
         merkle_root = read_little_endian(fin, sha256_size)
         fout.write('Merkle root hash= {}\n'.format(hexify_bytes(merkle_root)))
-        #Save merkle-root hash value as a field for validation in the block
+        #Save merkle-root hash value as a field for block validation later
         self.merkle_root = merkle_root
 
         #Timestamp, difficulty, nonce
         vals = struct.unpack('<3I', fin.read(int_size*3))
-        fout.write('Time stamp= {}\n'.format(hexify_bytes(vals[0])))
-        fout.write('Difficulty= {}\n'.format(hexify_bytes(vals[1])))
-        fout.write('Nonce= {}\n'.format(hexify_bytes(vals[2])))
+        fout.write('Time stamp= {}\n'.format(vals[0]))
+        fout.write('Difficulty= {}\n'.format(vals[1]))
+        fout.write('Nonce= {}\n'.format(vals[2]))
 
 class Transaction:
     class InputTx:
@@ -93,7 +92,7 @@ class Transaction:
             bytes = read_little_endian(fin, sha256_size)
             pre_tx_hash = hexify_bytes(bytes)
             obj.raw_bytes += bytes[::-1]
-            fout.write('TX from hash= {}\n'.format(pre_tx_hash))
+            fout.write('TX sender hash= {}\n'.format(pre_tx_hash))
 
             #Previous Txout-index
             txout_index = unpack_one('<I', fin.read(int_size), obj)
@@ -110,7 +109,7 @@ class Transaction:
 
             #Sequence number
             sequence_number = unpack_one('<I', fin.read(int_size), obj)
-            fout.write('Sequence number= {}\n'.format(hexify_bytes(sequence_number)))
+            fout.write('Sequence number= {}\n'.format(sequence_number))
     class OutputTx:
         def read(self, fin, fout, obj):
             #value non negative integer giving the number of Satoshis(BTC/10^8) to be transfered
@@ -176,15 +175,11 @@ class Transaction:
 
         #Lock-time if non-zero and sequence numbers are < 0xFFFFFFFF: block height or timestamp when transaction is final
         lock_time = unpack_one('<I', fin.read(int_size), self)
-        fout.write('Lock time= {}\n'.format(hexify_bytes(lock_time)))
+        fout.write('Lock time= {}\n'.format(lock_time))
 
         # Double hash SHA-256, Big-Endian
-        bytes = self.raw_bytes
-        bytes = hashlib.sha256(bytes).digest()
-        bytes = hashlib.sha256(bytes).digest()
-        bytes = bytes[::-1] # Back to little-Endian
-        fout.write('Full TX hash= {}\n'.format(hexify_bytes(bytes)))
-        self.raw_bytes = bytes
+        self.raw_bytes = sha256_double(self.raw_bytes)
+        fout.write('SHA-256 TX hash= {}\n'.format(hexify_bytes(self.raw_bytes)))
 
 class Block:
     def read(self, fin, fout):
@@ -197,7 +192,7 @@ class Block:
 
         #Block size
         block_size = unpack_one('<I', fin.read(int_size))
-        fout.write('Block size= {}\n'.format(hexify_bytes(block_size)))
+        fout.write('Block size= {}\n'.format(block_size))
 
         #Transaction counter
         header = BlockHeader()
