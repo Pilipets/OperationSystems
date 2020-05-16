@@ -150,20 +150,20 @@ class Transaction:
 
         #Read all input transactions
         for idx in range(in_count):
-            fout.write('------Input tx{}---------------\n'.format(idx))
+            #fout.write('------Input tx{}---------------\n'.format(idx))
             in_tx = Transaction.InputTx()
             in_tx.read(fin, fout, self)
-            fout.write('-------------------------------\n')
+            #fout.write('-------------------------------\n')
         #Out tx counter, variable length integer
         out_count = read_vli(fin, self)
         fout.write('Output tx count= {}\n'.format(out_count))
 
         #Read all output transactions
         for idx in range(out_count):
-            fout.write('------Output tx{}--------------\n'.format(idx))
+            #fout.write('------Output tx{}--------------\n'.format(idx))
             out_tx = Transaction.OutputTx()
             out_tx.read(fin, fout, self)
-            fout.write('-------------------------------\n')
+            #fout.write('-------------------------------\n')
         # Witnesses	A list of witnesses, 1 for each input, omitted if flag above is missing
         # Witness data isn't counted when calculating transaction hash
         if witness_flag:
@@ -210,7 +210,7 @@ class Block:
         #Store transaction hashes to compute the merkle root and verify if parsed data is valid
         tx_hashes = []
         for idx in range(transaction_counter):
-            fout.write('Transaction{}\n'.format(idx))
+            #fout.write('Transaction{}\n'.format(idx))
             tx = Transaction()
             tx.read(fin, fout)
             fout.write('\n')

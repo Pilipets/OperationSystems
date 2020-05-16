@@ -3,6 +3,7 @@ import os
 import re
 import logging
 from BitcoinProto import *
+from multiprocessing import Pool
 
 class BitcoinBlockchainParser:
     blk_pattern = re.compile('blk\d{5}.dat')
@@ -19,34 +20,47 @@ class BitcoinBlockchainParser:
             logging.info("Path(%s) to output directory doesn't exist - creating one", out_dir_path)
             os.makedirs(out_dir_path)
 
-    def parse(self):
         blk_files_list = os.listdir(self.in_dir_path)
         filter_func = lambda f: BitcoinBlockchainParser.blk_pattern.match(f)
         blk_files_list = list(filter(filter_func, blk_files_list))
         blk_files_list.sort()
-        block_num = 0
+        self.blk_files_list = blk_files_list
+
+    def parse_one(self, blk_path):
+        in_path = self.in_dir_path + blk_path
+        out_path = self.out_dir_path + blk_path[:9] + 'out'
+        f_size = os.path.getsize(in_path)
+
+        fin = open(in_path, 'rb')
+        fout = open(out_path, 'w')
+        logging.info("Started reading %s", in_path)
+        while fin.tell() != f_size:
+            try:
+                fout.write('------------Started reading block----------\n')
+                blk = Block()
+                blk.read(fin, fout)
+            except IOError:
+                fout.write('Corrupted block in file={}\n'.format(in_path))
+                logging.warn("Corrupted data in %s, skipping to next block", in_path)
+            fout.write('------------Finished reading block---------\n\n')
+        logging.info("Finished reading %s", in_path)
+        fin.close()
+        fout.close()
+
+    def parse_single_thread(self):
+        blk_files_list = self.blk_files_list
+        logging.info("Started single processed parsing process")
         for blk_path in blk_files_list:
-            in_path = self.in_dir_path + blk_path
-            out_path = self.out_dir_path + blk_path[:9] + 'out'
-            f_size = os.path.getsize(in_path)
+            self.parse_one(blk_path)
+        logging.info("Finished single processed parsing process")
 
-            fin = open(in_path, 'rb')
-            fout = open(out_path, 'w')
-            logging.info("Started reading %s", in_path)
-            while fin.tell() != f_size:
-                try:
-                    fout.write('------------Started reading block{}----------\n'.format(block_num))
-                    blk = Block()
-                    blk.read(fin, fout)
-                    fout.write('------------Finished reading block{}---------\n\n'.format(block_num))
-                    block_num += 1
-                except IOError:
-                    fout.write('Corrupted block in block{}, file={}\n'.format(block_num, in_path))
-                    logging.warn("Corrupted data in %s, skipping to next block", in_path)
-                    break
-            logging.info("Finished reading %s", in_path)
-            fin.close()
-            fout.close()
-
-        def parse_threaded(self):
-            pass
+    def parse_multi_thread(self, threads = 5):
+        import math
+        # To avoid more that 10 files opened simultaniously
+        # If the parser used thread-safe DB, confiuration would be different
+        threads = math.min(threads, 10)
+        blk_files_list = self.blk_files_list
+        p = Pool(threads)
+        logging.info("Started concurrent parsing process with %d threads", threads)
+        p.map(self.parse_one, blk_files_list)
+        logging.info("Finished concurrent parsing process with %d threads", threads)
