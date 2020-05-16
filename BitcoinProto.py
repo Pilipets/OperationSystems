@@ -9,6 +9,7 @@ witness_flag_size = 2 # optional data
 value_size = 8
 #--------------------------
 
+#SHA family uses Big-Endian format
 def sha256_double(x):
     x = hashlib.sha256(hashlib.sha256(x).digest()).digest()
     return x[::-1] # Back to little-Endian
@@ -50,16 +51,15 @@ def read_vli(fin, obj = None):
         if obj: obj.raw_bytes += bytes
         return var_int
     elif var_int == 0xfd:
-        return unpack_one("<xH", f.read(2), obj)
+        return unpack_one("<H", f.read(2), obj)
     elif var_int == 0xfe:
-        return unpack_one("<xI", f.read(4), obj)
+        return unpack_one("<I", f.read(4), obj)
     elif var_int == 0xff:
-        return unpack_one("<xQ", f.read(8), obj)
+        return unpack_one("<Q", f.read(8), obj)
 
 class BlockHeader:
     def read(self, fin, fout):
         #Compute blockheader hash - SHA256(SHA256(block_header)) with OPENSSL
-        #SHA family uses Big-Endian format
         bytes = sha256_double(fin.read(block_header_size))
         cur_block_hash = hexify_bytes(bytes)
         fout.write('SHA-256 Current block hash= {}\n'.format(cur_block_hash))
@@ -177,7 +177,7 @@ class Transaction:
         lock_time = unpack_one('<I', fin.read(int_size), self)
         fout.write('Lock time= {}\n'.format(lock_time))
 
-        # Double hash SHA-256, Big-Endian
+        # Double hash this transaction SHA-256
         self.raw_bytes = sha256_double(self.raw_bytes)
         fout.write('SHA-256 TX hash= {}\n'.format(hexify_bytes(self.raw_bytes)))
 
