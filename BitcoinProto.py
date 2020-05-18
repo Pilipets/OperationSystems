@@ -12,7 +12,7 @@ value_size = 8
 #SHA family uses Big-Endian format
 def sha256_double(x):
     x = hashlib.sha256(hashlib.sha256(x).digest()).digest()
-    return x[::-1] # Back to little-Endian
+    return x
 
 def read_little_endian(f, bytes):
     bytes = f.read(bytes)
@@ -29,19 +29,20 @@ def unpack_one(format, bytes, obj = None):
 # https://github.com/bitcoin/bitcoin/blob/master/src/consensus/merkle.cpp
 # Compute only merkle root value exactly the same way as Bitcoin does
 # Please, pay attention that Merkle Tree implementations may vary, this one is used in Bitcoin
-def get_merkle_root(tx_list):
-    if len(tx_list) == 0:
+def get_merkle_root(txs):
+    if len(txs) == 0:
         return bytes()
-
-    while len(tx_list) != 1:
-        #Make a tx_list len even
-        if len(tx_list)&1: tx_list.append(tx_list[-1])
+    
+    while len(txs) > 1:   
         temp_list = []
-        for idx in range(0, len(tx_list), 2):
-            h1, h2 = tx_list[idx][::-1], tx_list[idx+1][::-1]
-            temp_list.append(sha256_double(h1+h2))
-        tx_list = temp_list
-    return tx_list[0]
+        for idx in range(0, len(txs), 2):
+            nl, nr = txs[idx], txs[idx]
+            if idx != len(txs)-1:
+                nr = txs[idx+1]
+            temp_list.append(sha256_double(nl + nr))
+        txs = temp_list
+        
+    return txs[0]
 
 #read variable-length integer https://bitcointalk.org/index.php?topic=32849.msg410480#msg410480
 def read_vli(fin, obj = None):
@@ -61,7 +62,7 @@ class BlockHeader:
     def read(self, fin, fout):
         #Compute blockheader hash - SHA256(SHA256(block_header)) with OPENSSL
         bytes = sha256_double(fin.read(block_header_size))
-        cur_block_hash = hexify_bytes(bytes)
+        cur_block_hash = hexify_bytes(bytes[::-1])
         fout.write('SHA-256 Current block hash= {}\n'.format(cur_block_hash))
         fin.seek(-block_header_size, 1)
 
@@ -77,7 +78,7 @@ class BlockHeader:
         merkle_root = read_little_endian(fin, sha256_size)
         fout.write('Merkle root hash= {}\n'.format(hexify_bytes(merkle_root)))
         #Save merkle-root hash value as a field for block validation later
-        self.merkle_root = merkle_root
+        self.merkle_root = merkle_root[::-1]
 
         #Timestamp, difficulty, nonce
         vals = struct.unpack('<3I', fin.read(int_size*3))
@@ -179,7 +180,7 @@ class Transaction:
 
         # Double hash this transaction SHA-256
         self.raw_bytes = sha256_double(self.raw_bytes)
-        fout.write('SHA-256 TX hash= {}\n'.format(hexify_bytes(self.raw_bytes)))
+        fout.write('SHA-256 full transaction hash= {}\n'.format(hexify_bytes(self.raw_bytes)))
 
 class Block:
     def read(self, fin, fout):
