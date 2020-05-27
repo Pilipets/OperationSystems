@@ -1,0 +1,23 @@
+	
+!temp=0x2343FFSSDFDFD
+
+#temp := -432.23E-675
+###temp2 == .432E6
+
+	SELECT column1, column2, columnN 
+FROM table_name obj 
+WHERE SINGLE    VALUE < 2 and VALUE <> 'sdfdsf'
+	GROUP   by column2;
+
+# How about a comment?
+-- This one? afds
+
+var:= 5
+var :: -2345
+
+
+Values(2,3,5,6)
+
+VALUES IN (3,5)
+
+func(args);
