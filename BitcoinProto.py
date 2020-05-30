@@ -1,5 +1,6 @@
 import hashlib
 import struct
+import datetime
 
 #Bitcoin Blockchain protocol
 int_size = 4
@@ -63,27 +64,29 @@ class BlockHeader:
         #Compute blockheader hash - SHA256(SHA256(block_header)) with OPENSSL
         bytes = sha256_double(fin.read(block_header_size))
         cur_block_hash = hexify_bytes(bytes[::-1])
-        fout.write('SHA-256 Current block hash= {}\n'.format(cur_block_hash))
         fin.seek(-block_header_size, 1)
 
         #Version
         version_number = unpack_one('<I', fin.read(int_size))
-        fout.write('Version number= {}\n'.format(version_number))
 
         #Previous-block hash
         previous_block_hash = hexify_bytes(read_little_endian(fin, sha256_size))
-        fout.write('SHA-256 Previous block hash= {}\n'.format(previous_block_hash))
 
         #Merkle-root
         merkle_root = read_little_endian(fin, sha256_size)
-        fout.write('Merkle root hash= {}\n'.format(hexify_bytes(merkle_root)))
         #Save merkle-root hash value as a field for block validation later
         self.merkle_root = merkle_root[::-1]
 
-        #Timestamp, difficulty, nonce
+        #Timestamp, bits, nonce
         vals = struct.unpack('<3I', fin.read(int_size*3))
-        fout.write('Time stamp= {}\n'.format(vals[0]))
-        fout.write('Difficulty= {}\n'.format(vals[1]))
+
+        fout.write('Current block hash= {}\n'.format(cur_block_hash))
+        fout.write('Block version= {}\n'.format(version_number))
+        fout.write('Previous block hash= {}\n'.format(previous_block_hash))
+        fout.write('Merkle root= {}\n'.format(hexify_bytes(merkle_root)))
+        creationTime = datetime.datetime.fromtimestamp(vals[0]).strftime('%d.%m.%Y %H:%M')
+        fout.write('Time stamp= {}\n'.format(creationTime))
+        fout.write('Bits= {}\n'.format(vals[1]))
         fout.write('Nonce= {}\n'.format(vals[2]))
 
 class Transaction:
@@ -93,11 +96,9 @@ class Transaction:
             bytes = read_little_endian(fin, sha256_size)
             pre_tx_hash = hexify_bytes(bytes)
             obj.raw_bytes += bytes[::-1]
-            fout.write('TX sender hash= {}\n'.format(pre_tx_hash))
 
             #Previous Txout-index
             txout_index = unpack_one('<I', fin.read(int_size), obj)
-            fout.write('TX output= {}\n'.format(hexify_bytes(txout_index)))
 
             #Txin-script length
             script_length = read_vli(fin, obj)
@@ -106,16 +107,19 @@ class Transaction:
             bytes = fin.read(script_length)
             script = hexify_bytes(bytes)
             obj.raw_bytes += bytes
-            fout.write('Input script= {}\n'.format(script))
 
             #Sequence number
             sequence_number = unpack_one('<I', fin.read(int_size), obj)
+
+            fout.write('Txin previous hash= {}\n'.format(pre_tx_hash))
+            fout.write('Txin previous id= {}\n'.format(hexify_bytes(txout_index)))
+            fout.write('Txin script-length= {}\n'.format(script_length))
+            fout.write('Txin script= {}\n'.format(script))
             fout.write('Sequence number= {}\n'.format(sequence_number))
     class OutputTx:
         def read(self, fin, fout, obj):
             #value non negative integer giving the number of Satoshis(BTC/10^8) to be transfered
             value = unpack_one('<Q', fin.read(value_size), obj)
-            fout.write('Satoshi amount= {}\n'.format(hexify_bytes(value)))
 
             #Txout-script length
             script_length = read_vli(fin, obj)
@@ -124,14 +128,16 @@ class Transaction:
             bytes = fin.read(script_length)
             script = hexify_bytes(bytes)
             obj.raw_bytes += bytes
-            fout.write('Output script= {}\n'.format(script))
 
+            fout.write('Txout satoshi amount= {}\n'.format(hexify_bytes(value)))
+            fout.write('Txout script-length= {}\n'.format(script_length))
+            fout.write('Txout script= {}\n'.format(script))
     def read(self, fin, fout):
         self.raw_bytes = b''
 
         #TX version number
         tx_version = unpack_one('<i', fin.read(int_size), self)
-        fout.write('TX version number= {}\n'.format(tx_version))
+        fout.write('TX version= {}\n'.format(tx_version))
 
         #Witness flag that might be absent 2 bytes(0x0001 if present)
         #Witness flag isn't counted when calculating transaction hash
@@ -150,37 +156,41 @@ class Transaction:
 
         #Read all input transactions
         for idx in range(in_count):
-            #fout.write('------Input tx{}---------------\n'.format(idx))
+            fout.write('------Input tx{}---------------\n'.format(idx))
             in_tx = Transaction.InputTx()
             in_tx.read(fin, fout, self)
-            #fout.write('-------------------------------\n')
+            fout.write('-------------------------------\n')
         #Out tx counter, variable length integer
         out_count = read_vli(fin, self)
         fout.write('Output tx count= {}\n'.format(out_count))
 
         #Read all output transactions
         for idx in range(out_count):
-            #fout.write('------Output tx{}--------------\n'.format(idx))
+            fout.write('------Output tx{}--------------\n'.format(idx))
             out_tx = Transaction.OutputTx()
             out_tx.read(fin, fout, self)
-            #fout.write('-------------------------------\n')
+            fout.write('-------------------------------\n')
         # Witnesses	A list of witnesses, 1 for each input, omitted if flag above is missing
         # Witness data isn't counted when calculating transaction hash
         if witness_flag:
-            for i in range(self.in_count):
-                witness_len = read_vli(fin)
-                for j in range(witness_len):
+            for i in range(in_count):
+                stack_items_count = read_vli(fin)
+                for j in range(stack_items_count):
                     witness_item_len = read_vli(fin)
                     witness_data = hexify_bytes(fin.read(witness_item_len))
                     fout.write('Witness[{},{},{}]= {}'.format(i,j, witness_item_len, witness_data))
 
         #Lock-time if non-zero and sequence numbers are < 0xFFFFFFFF: block height or timestamp when transaction is final
         lock_time = unpack_one('<I', fin.read(int_size), self)
-        fout.write('Lock time= {}\n'.format(lock_time))
+        if lock_time < 0x1DCD6500:
+            fout.write('Lock time(block height)= {}\n'.format(lock_time))
+        else:
+            lock_time = datetime.datetime.fromtimestamp(lock_time).strftime('%d.%m.%Y %H:%M')
+            fout.write('Lock time(timestamp)= {}\n'.format(lock_time))
 
         # Double hash this transaction SHA-256
         self.raw_bytes = sha256_double(self.raw_bytes)
-        fout.write('SHA-256 full transaction hash= {}\n'.format(hexify_bytes(self.raw_bytes)))
+        fout.write('Full transaction hash= {}\n'.format(hexify_bytes(self.raw_bytes)))
 
 class Block:
     def read(self, fin, fout):
@@ -189,13 +199,13 @@ class Block:
         while magic_number != 0xD9B4BEF9:
             #Skipping partially downloaded blocks
             magic_number = unpack_one('<I', fin.read(int_size))
-        fout.write('Magic number= {}\n'.format(hexify_bytes(magic_number)))
 
         #Block size
         block_size = unpack_one('<I', fin.read(int_size))
+        
+        fout.write('Magic number= {}\n'.format(magic_number))
         fout.write('Block size= {}\n'.format(block_size))
 
-        #Transaction counter
         header = BlockHeader()
         header.read(fin, fout)
         
@@ -206,7 +216,7 @@ class Block:
         #Store transaction hashes to compute the merkle root and verify if parsed data is valid
         tx_hashes = []
         for idx in range(transaction_counter):
-            #fout.write('Transaction{}\n'.format(idx))
+            fout.write('Transaction{}\n'.format(idx))
             tx = Transaction()
             tx.read(fin, fout)
             fout.write('\n')
@@ -216,3 +226,28 @@ class Block:
         merkle_root = get_merkle_root(tx_hashes)
         if merkle_root != header.merkle_root:
             fout.write('Merkle root mismatch - Expected{{}}, Actual{{}}'.format(header.merkle_root, merkle_root))
+
+def getNet(magic_number):
+    network = None
+    if(magic_number == 3652501241): network = 'main network'
+    elif(magic_number == 3669344250): network = 'test network'
+    elif(magic_number == 118034699): network = 'test network 3'
+    elif(magic_number== 4273258233): network = 'namecoin network'
+    return network
+
+def built_block_chain(headers_map, last_block_header):
+    if len(headers_map) > 0 and last_block_header is not None:
+        headers_count = 0
+        cur_header = last_block_header
+        while cur_header:
+            cur_header = headers_map.get(cur_header.prev_block_hash)
+            headers_count += 1
+        # Found headers_count blocks and skipped len(headers_map)-headers_count orphan blocks
+        ordered_headers = [None]*headers_count
+        cur_header = last_block_header
+        while cur_header:
+            ordered_headers[headers_count-1] = cur_header
+            cur_header = headers_map.get(cur_header.prev_block_hash)
+            headers_count -= 1
+        return ordered_headers
+    else: return None

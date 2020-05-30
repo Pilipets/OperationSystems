@@ -4,6 +4,7 @@ import re
 import logging
 from BitcoinProto import *
 from multiprocessing import Pool
+from multiprocessing import cpu_count
 
 class BitcoinBlockchainParser:
     blk_pattern = re.compile('blk\d{5}.dat')
@@ -54,10 +55,8 @@ class BitcoinBlockchainParser:
             self.parse_one(blk_path)
         logging.info("Finished single processed parsing process")
 
-    def parse_multi_thread(self, threads = 5):
-        # To avoid more that 10 files opened simultaniously
-        # If the parser used thread-safe DB, confiuration would be different
-        threads = min(threads, 10)
+    def parse_multi_thread(self, threads):
+        threads = min(threads, 2*cpu_count())
         blk_files_list = self.blk_files_list
         p = Pool(threads)
         logging.info("Started concurrent parsing process with %d threads", threads)
