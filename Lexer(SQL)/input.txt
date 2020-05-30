@@ -1,6 +1,12 @@
-	
+/*
+Edit the GROUP   BY! --.
+$Expression$ & Text to see matches. Roll 
+over matches or the expression for details. PCRE & 
+JavaScript %(flavors)s of RegEx are supported. 
+Validate your expression with Tests mode.*/
 !temp=0x2343FFSSDFDFD
 
+/* ... */
 #temp := -432.23E-675
 ###temp2 == .432E6
 
@@ -8,14 +14,22 @@
 FROM table_name obj 
 WHERE SINGLE    VALUE < 2 and VALUE <> 'sdfdsf'
 	GROUP   by column2;
+/*
+Edit the GROUP   BY! --.
+$Expression$ & Text to see matches. Roll 
+over matches or the expression for details. PCRE & 
+JavaScript %(flavors)s of RegEx are supported. 
+Validate your expression with Tests mode.*/
 
 # How about a comment?
 -- This one? afds
-
+		!Then how about placeholder - %(434fdsdf_sdf)s
+Or simpler one %s
 var:= 5
 var :: -2345
 
-
+ Hi, man \command
+No, it's not 234
 Values(2,3,5,6)
 
 VALUES IN (3,5)

@@ -24,4 +24,7 @@ Wildcard = Token.Wildcard
 Comment = Token.Comment
 Assignment = Token.Assignment
 
+Generic = Token.Generic
+Command = Generic.Command
+
 DML = Keyword.DML

@@ -16,7 +16,7 @@ def get_keyword_tt(value):
     elif val in KEYWORDS: return tt.Keyword
     else: return tt.Name
 
-# r'[0-9_A-Z][_$#\w]*', get_keyword_tt
+# r'[0-9_A-Z][_$#\w]*'
 class KeywordFA:
     def match(self, text, pos):
         start, state = pos, 0
@@ -34,7 +34,7 @@ class KeywordFA:
             return ins, get_keyword_tt(ins.group()) 
         else: return None
 
-#r'[A-Z]\w*(?=\()', tt.Function
+#r'[A-Z]\w*(?=\()'
 class FunctionFA:
     def match(self, text, pos):
         start, state = pos, 0
@@ -53,7 +53,7 @@ class FunctionFA:
         if state == 3: return NfaMatch(text, start, pos), tt.Function
         else: return None
 
-# r'-?0x[\dA-F]+', tt.Number.Hexadecimal
+# r'-?0x[\dA-F]+'
 class HexFA:
     def match(self, text, pos):
         start, state = pos, 0
@@ -76,7 +76,7 @@ class HexFA:
         if state == 4: return NfaMatch(text, start, pos), tt.Number.Hexadecimal
         else: return None
 
-# r'(@|##|#)[A-Z]\w+', tt.Name
+# r'(@|##|#)[A-Z]\w+'
 class NameFA:
     def match(self, text, pos):
         start, state = pos, 0
@@ -100,7 +100,7 @@ class NameFA:
         if state == 4: return NfaMatch(text, start, pos), tt.Name
         else: return None
 
-# r'-?\d*(\.\d+)?E-?\d+', tt.Number.Float
+# r'-?\d*(\.\d+)?E-?\d+'
 class FloatFA:
     def match(self, text, pos):
         start, state = pos, 0
@@ -131,11 +131,55 @@ class FloatFA:
         if state == 7: return NfaMatch(text, start, pos), tt.Number.Float
         else: return None
 
+# r'%(\(\w+\))?s'
+class PlaceHolderFA:
+    def match(self, text, pos):
+        start, state = pos, 0
+        while pos < len(text):
+            ch = text[pos]
+            next_state = None
+            if state == 0:
+                if ch == '%': next_state = 1
+            elif state == 1:
+                if ch == '(': next_state = 2
+                elif ch == 's': next_state = 5
+            elif state == 2:
+                if ch.isalnum() or ch == '_': next_state = 3
+            elif state == 3:
+                if ch.isalnum() or ch == '_': next_state = 3
+                elif ch == ')': next_state = 4
+            elif state == 4:
+                if ch == 's': next_state = 5
+            if next_state is None: break
+            else: state, pos = next_state, pos + 1
+        if state == 5: return NfaMatch(text, start, pos), tt.Name.Placeholder
+        else: return None
+
+# r'\\\w+'
+class CommandFA:
+    def match(self, text, pos):
+        start, state = pos, 0
+        while pos < len(text):
+            ch = text[pos]
+            next_state = None
+            if state == 0:
+                if ch == '\\': next_state = 1
+            elif state == 1:
+                if ch.isalnum() or ch == '_': next_state = 2
+            elif state == 2:
+                if ch.isalnum() or ch == '_': next_state = 2
+            if next_state is None: break
+            else: state, pos = next_state, pos + 1
+        if state == 2: return NfaMatch(text, start, pos), tt.Command
+        else: return None
+
 keywordFA = KeywordFA()
 funcFA = FunctionFA()
 hexFA = HexFA()
 nameFA = NameFA()
 floatFA = FloatFA()
+placeHoldFA = PlaceHolderFA()
+commandFA = CommandFA()
 
 # Extended with any char DFA - rather NFA
 class DFA():
@@ -163,9 +207,7 @@ def get_transition_dict(st, jumps, res={}):
     for ch in jumps: res[ch] = st
     return res
 
-# r':=', tt.Assignment
-# r'::', tt.Punctuation
-# r'\*', tt.Wildcard
+# r':=', r'::' r'\*'
 apwDFA = DFA(
     transitions={
         'q0': {':': 'q1', '*': 'q4'},
@@ -176,17 +218,17 @@ apwDFA = DFA(
     return_vals= {'q2': tt.Assignment, 'q3': tt.Punctuation, 'q4': tt.Wildcard}
 )
 
-# r'\s', tt.Whitespace
-wsDFA = DFA(
+# r'\s', r'\?'
+wspDFA = DFA(
     transitions={
-        'q0': {' ':  'q1', '\f': 'q1', '\v': 'q1', '\t': 'q1'}
+        'q0': {' ':  'q1', '\f': 'q1', '\v': 'q1', '\t': 'q1', '?': 'q2'}
     },
     initial_state='q0',
-    final_states={'q1'},
-    return_vals= {'q1': tt.Whitespace}
+    final_states={'q1', 'q2'},
+    return_vals= {'q1': tt.Whitespace, 'q2': tt.Name.Placeholder}
     )
 
-# r'(\r\n|\r|\n)', tt.Newline
+# r'(\r\n|\r|\n)'
 nlDFA = DFA(
     transitions={
         'q0': {'\r': 'q1', '\n': 'q2'},
@@ -197,7 +239,7 @@ nlDFA = DFA(
     return_vals= {'q1': tt.Newline, 'q2': tt.Newline}
 )
 
-# r'[;:()\[\],\.]', tt.Punctuation
+# r'[;:()\[\],\.]'
 puncDFA = DFA(
     transitions={
         'q0': get_transition_dict('q1', ';:()[],.')
@@ -207,7 +249,7 @@ puncDFA = DFA(
     return_vals= {'q1': tt.Punctuation}
 )
 
-# r'[<>=~!]+', tt.Operator.Comparison
+# r'[<>=~!]+'
 opCompDFA = DFA(
     transitions={
         'q0': get_transition_dict('q1', '<>=~!'),
@@ -218,7 +260,7 @@ opCompDFA = DFA(
     return_vals= {'q1': tt.Operator.Comparison}
 )
 
-# r'[+/@#%^&|`?^-]+', tt.Operator
+# r'[+/@#%^&|`?^-]+'
 operatorDFA = DFA(
     transitions={
         'q0': get_transition_dict('q1', '+/@#%^&|`?^-'),
@@ -229,7 +271,7 @@ operatorDFA = DFA(
     return_vals= {'q1': tt.Operator}
 )
 
-# r'(--|# ).*?(\r\n|\r|\n|$)', tt.Comment.Single
+# r'(--|# ).*?(\r\n|\r|\n|$)'
 singleCommentDFA = DFA(
     transitions={
         'q0': {'-': 'q7', '#': 'q8'},
@@ -241,6 +283,34 @@ singleCommentDFA = DFA(
     initial_state='q0',
     final_states={'q5', 'q6'},
     return_vals= {'q5': tt.Comment.Single, 'q6': tt.Comment.Single}
+)
+
+# r'/\*[\s\S]*?\*/'
+multiCommentDFA = DFA(
+    transitions={
+        'q0': {'/': 'q1'},
+        'q1': {'*': 'q2'},
+        'q2': {'*': 'q3', '': 'q2'},
+        'q3': {'/': 'q4', '': 'q2'}
+    },
+    initial_state='q0',
+    final_states={'q4'},
+    return_vals= {'q4': tt.Comment.Multiline}
+)
+
+# 'VALUES'
+hardcodedValuesDFA = DFA(
+        transitions={
+        'q0': {'V': 'q1'},
+        'q1': {'A': 'q2'},
+        'q2': {'L': 'q3'},
+        'q3': {'U': 'q4'},
+        'q4': {'E': 'q5'},
+        'q5': {'S': 'q6'}
+    },
+    initial_state='q0',
+    final_states={'q6'},
+    return_vals= {'q6': tt.Keyword}
 )
 
 # I'm not sure how complex FA techniques should be
@@ -258,9 +328,15 @@ KEYWORDS_DML = (
 )
 
 KEYWORDS = (
-    'ABORT', 'ABS', 'ADD', 'ALIAS', 'ALL', 'AUTO_INCREMENT', 'COUNT', 'COLUMN', 'CONSTRAINT',
-    'CONSTRAINTS', 'CONTAINS', 'CONTINUE', 'CLASS', 'DATA', 'DATABASE', 'EXISTING', 'EXISTS',
-    'GROUPING', 'HAVING', 'WHERE', 'FROM', 'INNER', 'JOIN', 'AND', 'OR', 'LIKE', 'ON', 'IN',
+    'ABORT', 'ABS', 'ADD', 'AFTER', 'ALIAS', 'ALL', 'ARE', 'ASC', 'AT', 'AUTO_INCREMENT',
+    'BEFORE', 'BEGIN', 'BOTH', 
+    'CASCADE', 'CHECK', 'COUNT', 'COLUMN', 'CONSTRAINT', 'CONSTRAINTS', 'CONTAINS', 'CONTINUE', 'CLASS', 'CLOSE', 
+    'COLLECT', 'COLUMN', 'COLUMN_NAME', 'COMMIT', 'CONNECT', 'CONTAINS', 'CONTINUE', 'COPY', 'CORRESPONDING', 
+    'DATA', 'DATABASE', 'DECLARE', 'DEFAULT', 'DESC', 'DELIMITER', 'DESTROY', 'DISCONNECT', 'DISABLE'
+    'EXISTING', 'EXISTS', 'EXTRACT', 'FOREACH', 'FOREIGN', 'FALSE', 'FULL', 'FUNCTION',
+    'GET', 'GROUPING', 'HAVING', 'IDENTIFY', 'IGNORE', 'ILIKE', 'INCLUDING', 'INCREMENT', 'INTERSECT', 'IS',
+    'ISNULL', 'ITERATE', 'KEY',
+    'WHERE', 'FROM', 'INNER', 'JOIN', 'AND', 'OR', 'LIKE', 'ON', 'IN',
     'SET', 'BY', 'GROUP', 'ORDER', 'AS', 'WHEN', 'DISTINCT', 'IF', 'END', 'THEN', 'LOOP',
-    'AS', 'ELSE', 'FOR', 'WHILE', 'CASE', 'WHEN', 'MIN', 'MAX'
+    'AS', 'ELSE', 'FOR', 'WHILE', 'CASE', 'MIN', 'MAX'
     )

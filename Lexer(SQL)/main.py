@@ -22,5 +22,5 @@ def test3():
                 print(x)
 
 if __name__ == '__main__':
-    test3()
+    test1()
 
