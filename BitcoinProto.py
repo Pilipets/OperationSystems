@@ -27,8 +27,6 @@ def unpack_one(format, bytes, obj = None):
     if obj: obj.raw_bytes += bytes
     return struct.unpack(format, bytes)[0]
 
-# https://github.com/bitcoin/bitcoin/blob/master/src/consensus/merkle.cpp
-# Compute only merkle root value exactly the same way as Bitcoin does
 # Please, pay attention that Merkle Tree implementations may vary, this one is used in Bitcoin
 def get_merkle_root(txs):
     if len(txs) == 0:
@@ -45,7 +43,7 @@ def get_merkle_root(txs):
         
     return txs[0]
 
-#read variable-length integer https://bitcointalk.org/index.php?topic=32849.msg410480#msg410480
+#read variable-length integer
 def read_vli(fin, obj = None):
     bytes = fin.read(1)
     var_int = ord(bytes)
@@ -74,7 +72,7 @@ class BlockHeader:
 
         #Merkle-root
         merkle_root = read_little_endian(fin, sha256_size)
-        #Save merkle-root hash value as a field for block validation later
+        #Save merkle-root hash value as a field for the block validation later
         self.merkle_root = merkle_root[::-1]
 
         #Timestamp, bits, nonce
@@ -178,7 +176,7 @@ class Transaction:
                 for j in range(stack_items_count):
                     witness_item_len = read_vli(fin)
                     witness_data = hexify_bytes(fin.read(witness_item_len))
-                    fout.write('Witness[{},{},{}]= {}'.format(i,j, witness_item_len, witness_data))
+                    fout.write('Witness[{},{},{}]= {}\n'.format(i,j, witness_item_len, witness_data))
 
         #Lock-time if non-zero and sequence numbers are < 0xFFFFFFFF: block height or timestamp when transaction is final
         lock_time = unpack_one('<I', fin.read(int_size), self)
@@ -227,7 +225,7 @@ class Block:
         if merkle_root != header.merkle_root:
             fout.write('Merkle root mismatch - Expected{{}}, Actual{{}}'.format(header.merkle_root, merkle_root))
 
-def getNet(magic_number):
+def get_net(magic_number):
     network = None
     if(magic_number == 3652501241): network = 'main network'
     elif(magic_number == 3669344250): network = 'test network'
