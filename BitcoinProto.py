@@ -172,11 +172,12 @@ class Transaction:
         # Witness data isn't counted when calculating transaction hash
         if witness_flag:
             for i in range(in_count):
-                stack_items_count = read_vli(fin)
-                for j in range(stack_items_count):
-                    witness_item_len = read_vli(fin)
-                    witness_data = hexify_bytes(fin.read(witness_item_len))
-                    fout.write('Witness[{},{},{}]= {}\n'.format(i,j, witness_item_len, witness_data))
+                tx_witnesses_amount = read_vli(fin)
+                for j in range(tx_witnesses_amount):
+                    cur_witness_len = read_vli(fin)
+                    cur_witness_data = hexify_bytes(fin.read(witness_item_len))
+                    fout.write('Witness[{},{},{}]:\n'.format(i,j,cur_witness_len))
+                    fout.write('Witness data= {}\n'.format(cur_witness_data))
 
         #Lock-time if non-zero and sequence numbers are < 0xFFFFFFFF: block height or timestamp when transaction is final
         lock_time = unpack_one('<I', fin.read(int_size), self)
