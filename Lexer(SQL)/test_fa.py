@@ -35,7 +35,9 @@ def test_float2_fa():
 
 
 float_data = [('-432.23E-675',  (NfaMatch('-432.23E-675', 0, 12), tt.Number.Float)),
-              ('.432E6',       (NfaMatch('.432E6', 0, 6), tt.Number.Float))
+              ('.432E6',        (NfaMatch('.432E6', 0, 6), tt.Number.Float)),
+              ('-.4E1',         (NfaMatch('-.4E1', 0, 5), tt.Number.Float)),
+              ('3.4E-43221',    (NfaMatch('3.4E-43221', 0, 10), tt.Number.Float)),
     ]
 def test_float_fa():
     matcher = floatFA.match

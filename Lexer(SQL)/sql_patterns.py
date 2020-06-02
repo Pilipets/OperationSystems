@@ -41,7 +41,7 @@ SQL_PATTERNS = [
 
     # https://www.w3schools.com/sql/sql_ref_union.asp
     (r'UNION\s+ALL\b', tt.Keyword, MType.REGEX),
-
+    (r'CREATE(\s+OR\s+REPLACE)?\b', tt.Keyword.DDL, MType.REGEX),
     (r'DOUBLE\s+PRECISION\b', tt.Name.Builtin, MType.REGEX),
     (r'GROUP\s+BY\b', tt.Keyword, MType.REGEX),
     (r'ORDER\s+BY\b', tt.Keyword, MType.REGEX),

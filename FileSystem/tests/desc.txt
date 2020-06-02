@@ -1,0 +1,10 @@
+t1. create. check was created and is empty
+t2. create - delete. check was deleted
+t3. delete not exist. check is error
+t4. create a lot of files
+t5. open a lot of files
+t6. write(less 1 block), close, open, read
+t7. write(more 1 block), close, open, read
+t8. write, seek, write, seek, reed all
+t9. write overflow 
+t10. open twice

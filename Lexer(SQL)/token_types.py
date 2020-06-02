@@ -28,3 +28,4 @@ Generic = Token.Generic
 Command = Generic.Command
 
 DML = Keyword.DML
+DDL = Keyword.DDL

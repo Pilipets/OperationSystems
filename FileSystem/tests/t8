@@ -1,0 +1,7 @@
+cr a
+op a
+wr 1 q 40
+sk 1 20
+wr 1 a 10
+sk 1 0
+rd 1 40

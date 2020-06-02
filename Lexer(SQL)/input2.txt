@@ -1,3 +1,6 @@
+GROUP BY
+
+
 (?![_A-Z])-?\d+(?![_A-Z])
 -1a2 3RegExr-> finds match for '2' only
 while -?\d+
@@ -5,3 +8,24 @@ while -?\d+
 The column names can start with the digits
 
 The above description is applicable for all the similar patterns
+
+
+SET @today = CURDATE();    -- can use = or :=
+SELECT name FROM patients WHERE nextVisitDate = @today;  -- can use the variable within the session
+ 
+SET @v1 = 1, @v2 = 2, @v3 = 3;
+SELECT @v1, @v2, @v3, @v4 := @v1 + @v2;  -- Use := in SELECT, because = is for comparison
+ 
+SELECT @ali_dob := dateOfBirth FROM patients WHERE name = 'Ali';
+SELECT dateOfBirth INTO @kumar_dob FROM patients WHERE name = 'kumar';
+SELECT name WHERE dateOfBirth BETWEEN @ali_dob AND @kumar_dob;
+
+CREATE TABLE IF NOT EXISTS StringArena (
+   cString1 VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_general_cs,  -- case-sensitive 'A' -> 'a' -> 'B' -> 'b'
+   cString2 CHAR(10) CHARACTER SET latin1,                               -- default collation of latin1_swedish_ci
+   cString3 TEXT
+) DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;                    -- case-insensitive 'A' and 'a' are the same
+
+
+CREATE DATABASE databaseName
+DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;

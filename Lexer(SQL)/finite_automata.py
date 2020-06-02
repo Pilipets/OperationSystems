@@ -14,9 +14,10 @@ class NfaMatch:
 
 def get_keyword_tt(value):
     val = value.upper()
-    if val in KEYWORDS_DML: return tt.DML
+    if val in KEYWORDS: return tt.Keyword
     elif val in KEYWORDS_TYPES: return tt.Name.BuiltIn
-    elif val in KEYWORDS: return tt.Keyword
+    elif val in KEYWORDS_DML: return tt.DML
+    elif val in KEYWORDS_DDL: return tt.DDL
     else: return tt.Name
 
 # r'[0-9_A-Za-z][_$#\w]*'
@@ -51,7 +52,7 @@ class FunctionFA:
             if next_state is None: break
             else: state, pos = next_state, pos + 1
 
-        if state == 1 and pos < len(text) and text[pos+1] == '(':
+        if state == 1 and pos < len(text) and text[pos] == '(':
             return NfaMatch(text, start, pos), tt.Function
         else: return None
 
@@ -222,129 +223,134 @@ def get_transition_dict(st, jumps, res={}):
 # r':=', r'::' r'\*'
 apwDFA = DFA(
     transitions={
-        'q0': {':': 'q1', '*': 'q4'},
-        'q1': {'=': 'q2', ':': 'q3'}
+        0: {':': 1, '*': 4},
+        1: {'=': 2, ':': 3}
     },
-    initial_state='q0',
-    final_states={'q2', 'q3', 'q4'},
-    return_vals= {'q2': tt.Assignment, 'q3': tt.Punctuation, 'q4': tt.Wildcard}
+    initial_state= 0,
+    final_states={2, 3, 4},
+    return_vals= {2: tt.Assignment, 3: tt.Punctuation, 4: tt.Wildcard}
 )
 
 # r'\s', r'\?'
 wspDFA = DFA(
     transitions={
-        'q0': {' ':  'q1', '\f': 'q1', '\v': 'q1', '\t': 'q1', '?': 'q2'}
+        0: {' ':  1, '\f': 1, '\v': 1, '\t': 1, '?': 2}
     },
-    initial_state='q0',
-    final_states={'q1', 'q2'},
-    return_vals= {'q1': tt.Whitespace, 'q2': tt.Name.Placeholder}
+    initial_state=0,
+    final_states={1, 2},
+    return_vals= {1: tt.Whitespace, 2: tt.Name.Placeholder}
     )
 
 # r'(\r\n|\r|\n)'
 nlDFA = DFA(
     transitions={
-        'q0': {'\r': 'q1', '\n': 'q2'},
-        'q1': {'\n': 'q2'}
+        0: {'\r': 1, '\n': 2},
+        1: {'\n': 2}
     },
-    initial_state='q0',
-    final_states={'q1', 'q2'},
-    return_vals= {'q1': tt.Newline, 'q2': tt.Newline}
+    initial_state=0,
+    final_states={1, 2},
+    return_vals= {1: tt.Newline, 2: tt.Newline}
 )
 
 # r'[;:()\[\],\.]'
 puncDFA = DFA(
     transitions={
-        'q0': get_transition_dict('q1', ';:()[],.')
+        0: get_transition_dict(1, ';:()[],.')
     },
-    initial_state='q0',
-    final_states={'q1'},
-    return_vals= {'q1': tt.Punctuation}
+    initial_state=0,
+    final_states={1},
+    return_vals= {1: tt.Punctuation}
 )
 
 # r'[<>=~!]+'
 opCompDFA = DFA(
     transitions={
-        'q0': get_transition_dict('q1', '<>=~!'),
-        'q1': get_transition_dict('q1', '<>=~!')
+        0: get_transition_dict(1, '<>=~!'),
+        1: get_transition_dict(1, '<>=~!')
     },
-    initial_state='q0',
-    final_states={'q1'},
-    return_vals= {'q1': tt.Operator.Comparison}
+    initial_state=0,
+    final_states={1},
+    return_vals= {1: tt.Operator.Comparison}
 )
 
 # r'[+/@#%^&|`?^-]+'
 operatorDFA = DFA(
     transitions={
-        'q0': get_transition_dict('q1', '+/@#%^&|`?^-'),
-        'q1': get_transition_dict('q1', '+/@#%^&|`?^-')
+        0: get_transition_dict(1, '+/@#%^&|`?^-'),
+        1: get_transition_dict(1, '+/@#%^&|`?^-')
     },
-    initial_state='q0',
-    final_states={'q1'},
-    return_vals= {'q1': tt.Operator}
+    initial_state=0,
+    final_states={1},
+    return_vals= {1: tt.Operator}
 )
 
 # r'(--|# ).*?(\r\n|\r|\n|$)'
 singleCommentDFA = DFA(
     transitions={
-        'q0': {'-': 'q7', '#': 'q8'},
-        'q1': {'\n': 'q4', '': 'q2'},
-        'q2': {'\r': 'q5', '\n': 'q6', '\0': 'q6', '':'q2'},
-        'q5': {'\n': 'q6'},
-        'q7': {'-': 'q1'}, 'q8': {' ': 'q1'}
+        0: {'-': 7, '#': 8},
+        1: {'\n': 4, '': 2},
+        2: {'\r': 5, '\n': 6, '\0': 6, '': 2},
+        5: {'\n': 6},
+        7: {'-': 1}, 8: {' ': 1}
     },
-    initial_state='q0',
-    final_states={'q5', 'q6'},
-    return_vals= {'q5': tt.Comment.Single, 'q6': tt.Comment.Single}
+    initial_state=0,
+    final_states={5, 6},
+    return_vals= {5: tt.Comment.Single, 6: tt.Comment.Single}
 )
 
 # r'/\*[\s\S]*?\*/'
 multiCommentDFA = DFA(
     transitions={
-        'q0': {'/': 'q1'},
-        'q1': {'*': 'q2'},
-        'q2': {'*': 'q3', '': 'q2'},
-        'q3': {'/': 'q4', '': 'q2'}
+        0: {'/': 1},
+        1: {'*': 2},
+        2: {'*': 3, '': 2},
+        3: {'/': 4, '': 2}
     },
-    initial_state='q0',
-    final_states={'q4'},
-    return_vals= {'q4': tt.Comment.Multiline}
+    initial_state=0,
+    final_states={4},
+    return_vals= {4: tt.Comment.Multiline}
 )
 
 # 'VALUES'
 hardcodedValuesDFA = DFA(
         transitions={
-        'q0': {'V': 'q1'},
-        'q1': {'A': 'q2'},
-        'q2': {'L': 'q3'},
-        'q3': {'U': 'q4'},
-        'q4': {'E': 'q5'},
-        'q5': {'S': 'q6'}
+        0: {'V': 1},
+        1: {'A': 2},
+        2: {'L': 3},
+        3: {'U': 4},
+        4: {'E': 5},
+        5: {'S': 6}
     },
-    initial_state='q0',
-    final_states={'q6'},
-    return_vals= {'q6': tt.Keyword}
+    initial_state=0,
+    final_states={6},
+    return_vals= {6: tt.Keyword}
 )
 
-
+# https://www.w3schools.com/sql/sql_datatypes.asp
 KEYWORDS_TYPES = (
-    'ARRAY', 'BIGINT', 'BINARY', 'BIT', 'BLOB', 'BOOLEAN', 'CHAR', 'CHARACTER', 'DECIMAL',
-    'FLOAT', 'INT', 'INTEGER', 'TEXT', 'VARCHAR'
+    # String
+    'CHAR', 'VARCHAR', 'BINARY', 'VARBINARY', 'TINYBLOB', 'TINYTEXT', 'TEXT', 'BLOB', 'MEDIUMTEXT', 'MEDIUMBLOB',
+    'LONGTEXT', 'LONGBLOB', 'ENUM', 'SET',
+    # Numeric
+    'BIT', 'TINYINT', 'BOOL', 'BOOLEAN', 'SMALLINT', 'MEDIUMINT', 'INT', 'INTEGER', 'BIGINT', 'FLOAT', 'DOUBLE',
+    'DECIMAL', 'DEC',
+    # Date and Time
+    'DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'YEAR'
     )
 
-KEYWORDS_DML = (
-    'SELECT', 'INSERT', 'DELETE', 'UPDATE', 'DROP', 'CREATE', 'ALTER'
+# https://www.w3schools.com/sql/sql_ref_keywords.asp
+KEYWORDS = (
+    'ADD', 'ALL', 'AND', 'ANY', 'AS', 'ASC', 'BACKUP', 'BETWEEN', 'BY', 'CASE', 'CHECK', 'COLUMN', 
+    'CONSTRAINT', 'DATABASE', 'DEFAULT', 'DESC', 'DISTINCT', 'DROP', 'ELSE', 'END', 'EXEC', 'EXISTS', 
+    'FOR', 'FOREIGN', 'FROM', 'FULL', 'GROUP', 'HAVING', 'IF', 'IN', 'INDEX', 'INNER', 'INTO', 'IS', 
+    'JOIN', 'KEY', 'LEFT', 'LIKE', 'LIMIT', 'LOOP', 'MAX', 'MIN', 'NOT', 'NULL', 'ON', 'OR', 'ORDER', 
+    'OUTER', 'PRIMARY', 'PROCEDURE', 'RIGHT', 'ROWNUM', 'SET', 'STRAIGHT_JOIN', 'TABLE', 'THEN', 'TOP', 
+    'TRUNCATE', 'UNION', 'UNIQUE', 'VALUES', 'VIEW', 'WHEN', 'WHERE', 'WHILE'
 )
 
-KEYWORDS = (
-    'ABORT', 'ABS', 'ADD', 'AFTER', 'ALIAS', 'ALL', 'ARE', 'ASC', 'AT', 'AUTO_INCREMENT',
-    'BEFORE', 'BEGIN', 'BOTH',
-    'CASCADE', 'CHECK', 'COUNT', 'COLUMN', 'CONSTRAINT', 'CONSTRAINTS', 'CONTAINS', 'CONTINUE', 'CLASS', 'CLOSE',
-    'COLLECT', 'COLUMN', 'COLUMN_NAME', 'COMMIT', 'CONNECT', 'CONTAINS', 'CONTINUE', 'COPY', 'CORRESPONDING',
-    'DATA', 'DATABASE', 'DECLARE', 'DEFAULT', 'DESC', 'DELIMITER', 'DESTROY', 'DISCONNECT', 'DISABLE'
-    'EXISTING', 'EXISTS', 'EXTRACT', 'FOREACH', 'FOREIGN', 'FALSE', 'FULL', 'FUNCTION',
-    'GET', 'GROUPING', 'HAVING', 'IDENTIFY', 'IGNORE', 'ILIKE', 'INCLUDING', 'INCREMENT', 'INTERSECT', 'IS',
-    'ISNULL', 'ITERATE', 'KEY',
-    'WHERE', 'FROM', 'INNER', 'JOIN', 'AND', 'OR', 'LIKE', 'ON', 'IN',
-    'SET', 'BY', 'GROUP', 'ORDER', 'AS', 'WHEN', 'DISTINCT', 'IF', 'END', 'THEN', 'LOOP',
-    'AS', 'ELSE', 'FOR', 'WHILE', 'CASE', 'MIN', 'MAX'
+KEYWORDS_DML = (
+    'SELECT', 'INSERT', 'DELETE', 'UPDATE', 'REPLACE', 'MERGE'
+    )
+KEYWORDS_DDL = (
+    'DROP', 'CREATE', 'ALTER'
     )

@@ -1,0 +1,6 @@
+cr a
+op a
+wr 1 q 70
+cl 1
+op a
+rd 1 80
