@@ -100,6 +100,35 @@ class NameFA:
         if state == 4: return NfaMatch(text, start, pos), tt.Name
         else: return None
 
+# r'-?(\d+(\.\d*)|\.\d+)(?![_A-Z])'
+class FloatFA:
+    def match(self, text, pos):
+        start, state = pos, 0
+        while pos < len(text):
+            ch = text[pos]
+            next_state = None
+            if state == 0:
+                if ch == '-': next_state = 1
+                elif ch.isdigit(): next_state = 2
+            elif state == 1:
+                if ch.isalpha() or ch == '_': pass
+                elif ch == '.': next_state = 3
+                elif ch == 'E': next_state = 5
+            elif state == 3:
+                if ch.isdigit(): next_state = 4
+            elif state == 4:
+                if ch.isdigit(): next_state = 4
+                elif ch == 'E': next_state = 5
+            elif state == 5:
+                if ch == '-': next_state = 6
+                elif ch.isdigit(): next_state = 7
+            elif state == 6 or state == 7:
+                if ch.isdigit(): next_state = 7
+            if next_state is None: break
+            else: state, pos = next_state, pos + 1
+        if state == 7: return NfaMatch(text, start, pos), tt.Number.Float
+        else: return None
+
 # r'-?\d*(\.\d+)?E-?\d+'
 class FloatFA:
     def match(self, text, pos):
@@ -329,9 +358,9 @@ KEYWORDS_DML = (
 
 KEYWORDS = (
     'ABORT', 'ABS', 'ADD', 'AFTER', 'ALIAS', 'ALL', 'ARE', 'ASC', 'AT', 'AUTO_INCREMENT',
-    'BEFORE', 'BEGIN', 'BOTH', 
-    'CASCADE', 'CHECK', 'COUNT', 'COLUMN', 'CONSTRAINT', 'CONSTRAINTS', 'CONTAINS', 'CONTINUE', 'CLASS', 'CLOSE', 
-    'COLLECT', 'COLUMN', 'COLUMN_NAME', 'COMMIT', 'CONNECT', 'CONTAINS', 'CONTINUE', 'COPY', 'CORRESPONDING', 
+    'BEFORE', 'BEGIN', 'BOTH',
+    'CASCADE', 'CHECK', 'COUNT', 'COLUMN', 'CONSTRAINT', 'CONSTRAINTS', 'CONTAINS', 'CONTINUE', 'CLASS', 'CLOSE',
+    'COLLECT', 'COLUMN', 'COLUMN_NAME', 'COMMIT', 'CONNECT', 'CONTAINS', 'CONTINUE', 'COPY', 'CORRESPONDING',
     'DATA', 'DATABASE', 'DECLARE', 'DEFAULT', 'DESC', 'DELIMITER', 'DESTROY', 'DISCONNECT', 'DISABLE'
     'EXISTING', 'EXISTS', 'EXTRACT', 'FOREACH', 'FOREIGN', 'FALSE', 'FULL', 'FUNCTION',
     'GET', 'GROUPING', 'HAVING', 'IDENTIFY', 'IGNORE', 'ILIKE', 'INCLUDING', 'INCREMENT', 'INTERSECT', 'IS',

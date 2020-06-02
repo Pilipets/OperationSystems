@@ -29,9 +29,9 @@ SQL_PATTERNS = [
     (fa.funcFA.match, MType.MyFA),
     (fa.hexFA.match,  MType.MyFA),
     (fa.floatFA.match, MType.MyFA),
-    (r'(?![_A-Z])-?(\d+(\.\d*)|\.\d+)(?![_A-Z])', tt.Number.Float, MType.REGEX),
+    (r'-?(\d+(\.\d*)|\.\d+)(?![_A-Z])', tt.Number.Float, MType.REGEX),
 
-    (r'(?![_A-Z])-?\d+(?![_A-Z])', tt.Number.Integer, MType.REGEX),
+    (r'\d+(?![_A-Z])', tt.Number.Integer, MType.REGEX),
     (r"'(''|\\\\|\\'|[^'])*'", tt.String.Single, MType.REGEX),
 
     (r'((LEFT\s+|RIGHT\s+)?(INNER\s+|OUTER\s+)?)?JOIN\b', tt.Keyword, MType.REGEX),
