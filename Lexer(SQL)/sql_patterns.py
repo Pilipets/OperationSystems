@@ -18,29 +18,34 @@ SQL_PATTERNS = [
     (r"`(``|[^`])*`", tt.Name, MType.REGEX),
     (r"´(´´|[^´])*´", tt.Name, MType.REGEX),
 
-    (fa.placeHoldFA.match, MType.MyFA),
     (r'(?<!\w)[$:?]\w+', tt.Name.Placeholder, MType.REGEX),
-
-    (fa.commandFA.match, MType.MyFA),
 
     (r'(CASE|IN|USING|FROM|AS)\b', tt.Keyword, MType.REGEX),
     (fa.hardcodedValuesDFA.match, MType.DFA),
     (fa.nameFA.match, MType.MyFA),
+    (r'(?<=\.)[A-Z]\w*', tt.Name, MType.REGEX),
+
     (fa.funcFA.match, MType.MyFA),
+
     (fa.hexFA.match,  MType.MyFA),
+
     (fa.floatFA.match, MType.MyFA),
-    (r'-?(\d+(\.\d*)|\.\d+)(?![_A-Z])', tt.Number.Float, MType.REGEX),
+    (fa.float2FA.match, MType.MyFA),
+    (fa.intFA.match, MType.MyFA),
 
-    (r'\d+(?![_A-Z])', tt.Number.Integer, MType.REGEX),
     (r"'(''|\\\\|\\'|[^'])*'", tt.String.Single, MType.REGEX),
-
-    (r'((LEFT\s+|RIGHT\s+)?(INNER\s+|OUTER\s+)?)?JOIN\b', tt.Keyword, MType.REGEX),
+    
+    # http://www.mysql.ru/docs/man/JOIN.html
+    (r'((LEFT\s+|RIGHT\s+|FULL\s+)?(INNER\s+|OUTER\s+|STRAIGHT\s+)|(CROSS\s+|NATURAL\s+)?)?JOIN\b', tt.Keyword, MType.REGEX),
     (r'NOT\s+NULL\b', tt.Keyword, MType.REGEX),
+
+    # https://www.w3schools.com/sql/sql_ref_union.asp
+    (r'UNION\s+ALL\b', tt.Keyword, MType.REGEX),
 
     (r'DOUBLE\s+PRECISION\b', tt.Name.Builtin, MType.REGEX),
     (r'GROUP\s+BY\b', tt.Keyword, MType.REGEX),
     (r'ORDER\s+BY\b', tt.Keyword, MType.REGEX),
-    (r'(NOT\s+)?(LIKE|ILIKE)\b', tt .Operator.Comparison, MType.REGEX),
+    (r'(NOT\s+)?LIKE\b', tt .Operator.Comparison, MType.REGEX),
     (fa.keywordFA.match, MType.MyFA),
 
     (fa.puncDFA.match, MType.DFA),

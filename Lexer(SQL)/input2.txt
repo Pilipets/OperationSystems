@@ -1,0 +1,7 @@
+(?![_A-Z])-?\d+(?![_A-Z])
+-1a2 3RegExr-> finds match for '2' only
+while -?\d+
+-1a2 3RegExr-> finds matches for '-1', '2' and '3'
+The column names can start with the digits
+
+The above description is applicable for all the similar patterns
