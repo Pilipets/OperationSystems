@@ -9,21 +9,24 @@ class MType(enum.Enum):
    DFA = 3
 
 SQL_PATTERNS = [
-    (fa.singleCommentDFA.match, MType.DFA),
+    (fa.singleCommentFA.match, MType.MyFA),
     (fa.multiCommentDFA.match, MType.DFA),
     (fa.apwDFA.match, MType.DFA),
-    (fa.wspDFA.match, MType.DFA),
+    (fa.wsDFA.match, MType.DFA),
     (fa.nlDFA.match, MType.DFA),
 
     (r"`(``|[^`])*`", tt.Name, MType.REGEX),
     (r"´(´´|[^´])*´", tt.Name, MType.REGEX),
 
     (r'(?<!\w)[$:?]\w+', tt.Name.Placeholder, MType.REGEX),
+    (r'\?', tt.Name.Placeholder, MType.REGEX),
 
     (r'(CASE|IN|USING|FROM|AS)\b', tt.Keyword, MType.REGEX),
     (fa.hardcodedValuesDFA.match, MType.DFA),
     (fa.nameFA.match, MType.MyFA),
-    (r'(?<=\.)[A-Z]\w*', tt.Name, MType.REGEX),
+
+    # How should name.dot_name be partitioned into tokens?!
+    # (r'(?<=\.)[A-Z]\w*', tt.Name, MType.REGEX),
 
     (fa.funcFA.match, MType.MyFA),
 

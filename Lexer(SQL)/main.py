@@ -9,7 +9,7 @@ def test1():
         print(x)
 
 def test2():
-    text = 'select perId from Permission where document.docId=?1 and user.id=2'
+    text = '0x2e2z'
     res = Lexer.get_tokens(text)
     for x in res:
         print(x)
@@ -22,5 +22,5 @@ def test3():
                 print(x)
 
 if __name__ == '__main__':
-    test1()
+    test2()
 

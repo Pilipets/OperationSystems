@@ -28,6 +28,7 @@ Or simpler one %s
 var:= 5
 var :: -2345
 
+name.dot_name
  Hi, man \command
 No, it's not 234
 Values(2,3,5,6)
@@ -35,3 +36,4 @@ Values(2,3,5,6)
 VALUES IN (3,5)
 
 func(args);
+# How about a comment?

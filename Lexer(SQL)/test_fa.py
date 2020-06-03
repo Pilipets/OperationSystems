@@ -45,5 +45,16 @@ def test_float_fa():
         assert matcher(dt[0], 0) == dt[1]
 
 
+err_data = [('#abc'),
+            ('!'),
+            ('!adsad'),
+            ('#23')
+    ]
+def test_error_tt():
+    for dt in err_data:
+        tokens = Lexer.get_tokens(err_data[0])
+        assert tokens[0][0] == tt.Error
+
+
 if __name__ == '__main__':
-    test_float_fa()
+    test_error_tt()

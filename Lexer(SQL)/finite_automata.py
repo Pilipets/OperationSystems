@@ -70,10 +70,8 @@ class HexFA:
                 if ch == '0': next_state = 2
             elif state == 2:
                 if ch == 'x': next_state = 3
-            elif state == 3:
-                if ch.isalpha() or ch.isdigit(): next_state = 4
-            elif state == 4:
-                if ch.isalpha() or ch.isdigit(): next_state = 4
+            elif state == 3 or state == 4:
+                if (ch >= 'a' and ch <= 'f') or (ch >= 'A' and ch <= 'F') or ch.isdigit(): next_state = 4
             if next_state is None: break
             else: state, pos = next_state, pos + 1
         if state == 4: return NfaMatch(text, start, pos), tt.Number.Hexadecimal
@@ -186,6 +184,33 @@ class IntFA:
             else: return None
         else: return NfaMatch(text, start, pos), tt.Number.Integer
 
+# r'(--|# ).*?(\r\n|\r|\n|$)'
+class SingleCommentFA:
+    def match(self, text, pos):
+        start, state = pos, 0
+        while pos < len(text):
+            ch = text[pos]
+            next_state = None
+            if state == 0:
+                if ch == '-': next_state = 1
+                elif ch == '#': next_state = 2
+            elif state == 1:
+                if ch == '-': next_state = 3
+            elif state == 2:
+                if ch == ' ': next_state = 3
+            elif state == 3:
+                if ch == '\n': next_state = 5
+                elif ch == '\r': next_state = 4
+                else: next_state = 3
+            elif state == 4:
+                if ch == '\n': next_state = 5
+            if next_state is None: break
+            else: state, pos = next_state, pos + 1
+
+        if state == 4 or state == 5 or (state == 3 and pos == len(text)):
+            return NfaMatch(text, start, pos), tt.Comment.Single
+        else: return None
+
 keywordFA = KeywordFA()
 funcFA = FunctionFA()
 hexFA = HexFA()
@@ -193,6 +218,7 @@ nameFA = NameFA()
 floatFA = FloatFA()
 float2FA = Float2FA()
 intFA = IntFA()
+singleCommentFA = SingleCommentFA()
 
 # Extended with any char DFA
 class DFA():
@@ -231,14 +257,14 @@ apwDFA = DFA(
     return_vals= {2: tt.Assignment, 3: tt.Punctuation, 4: tt.Wildcard}
 )
 
-# r'\s', r'\?'
-wspDFA = DFA(
+# r'\s'
+wsDFA = DFA(
     transitions={
-        0: {' ':  1, '\f': 1, '\v': 1, '\t': 1, '?': 2}
+        0: {' ':  1, '\f': 1, '\v': 1, '\t': 1}
     },
     initial_state=0,
-    final_states={1, 2},
-    return_vals= {1: tt.Whitespace, 2: tt.Name.Placeholder}
+    final_states={1},
+    return_vals= {1: tt.Whitespace}
     )
 
 # r'(\r\n|\r|\n)'
@@ -262,40 +288,28 @@ puncDFA = DFA(
     return_vals= {1: tt.Punctuation}
 )
 
-# r'[<>=~!]+'
+# SQL Comparison Operators
+# =, <, <=, <>, >=, >, 
 opCompDFA = DFA(
     transitions={
-        0: get_transition_dict(1, '<>=~!'),
-        1: get_transition_dict(1, '<>=~!')
+        0: {'=': 3, '<': 1, '>': 2},
+        1: {'=': 3, '>': 3},
+        2: {'=': 3}
     },
     initial_state=0,
-    final_states={1},
-    return_vals= {1: tt.Operator.Comparison}
+    final_states={1, 2, 3},
+    return_vals= {1: tt.Operator.Comparison, 2: tt.Operator.Comparison, 3: tt.Operator.Comparison}
 )
 
-# r'[+/@#%^&|`?^-]+'
+# SQL Bitwise, Arithmetic, Compound Operators
 operatorDFA = DFA(
     transitions={
-        0: get_transition_dict(1, '+/@#%^&|`?^-'),
-        1: get_transition_dict(1, '+/@#%^&|`?^-')
+        0: get_transition_dict(1, '+-*/&|^%'),
+        1: {'=': 2}
     },
     initial_state=0,
-    final_states={1},
-    return_vals= {1: tt.Operator}
-)
-
-# r'(--|# ).*?(\r\n|\r|\n|$)'
-singleCommentDFA = DFA(
-    transitions={
-        0: {'-': 7, '#': 8},
-        1: {'\n': 4, '': 2},
-        2: {'\r': 5, '\n': 6, '\0': 6, '': 2},
-        5: {'\n': 6},
-        7: {'-': 1}, 8: {' ': 1}
-    },
-    initial_state=0,
-    final_states={5, 6},
-    return_vals= {5: tt.Comment.Single, 6: tt.Comment.Single}
+    final_states={1, 2},
+    return_vals= {1: tt.Operator, 2: tt.Operator}
 )
 
 # r'/\*[\s\S]*?\*/'
