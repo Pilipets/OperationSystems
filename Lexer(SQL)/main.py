@@ -2,14 +2,14 @@ from lexer import Lexer
 
 
 def test1():
-    with open('input.txt', 'r') as f:
+    with open('input2.txt', 'r') as f:
         text = f.read()
     res = Lexer.get_tokens(text)
     for x in res:
         print(x)
 
 def test2():
-    text = '0x2e2z'
+    text = '!adsad'
     res = Lexer.get_tokens(text)
     for x in res:
         print(x)
