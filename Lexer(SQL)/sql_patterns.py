@@ -25,8 +25,7 @@ SQL_PATTERNS = [
     (fa.hardcodedValuesDFA.match, MType.DFA),
     (fa.nameFA.match, MType.MyFA),
 
-    # How should name.dot_name be partitioned into tokens?!
-    # (r'(?<=\.)[A-Z]\w*', tt.Name, MType.REGEX),
+    (r'(?<=\.)[A-Z]\w*', tt.Name, MType.REGEX),
 
     (fa.funcFA.match, MType.MyFA),
 
